@@ -3,6 +3,8 @@ import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 
+import type { PointOfInterest } from '@/types/poi';
+
 type LocationCoords = {
   latitude: number;
   longitude: number;
@@ -10,6 +12,8 @@ type LocationCoords = {
 
 type Props = {
   location: LocationCoords;
+  pois?: PointOfInterest[];
+  onMapLongPress?: (coords: { latitude: number; longitude: number }) => void;
   onOpenInMaps: () => void;
   buttonColor: string;
 };

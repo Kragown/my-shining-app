@@ -18,6 +18,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { usePois } from '@/hooks/use-pois';
+import { useUserRole } from '@/hooks/use-user-role';
 
 type LocationCoords = {
   latitude: number;
@@ -29,6 +30,7 @@ type LocationCoords = {
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const { isAdmin } = useUserRole();
   const { pois, loading: poisLoading, error: poisError, addPoi, deletePoi } = usePois();
 
   const [location, setLocation] = useState<LocationCoords | null>(null);
@@ -160,13 +162,13 @@ export default function HomeScreen() {
           <LocationMap
             location={location}
             pois={pois}
-            onMapLongPress={handleMapLongPress}
+            onMapLongPress={isAdmin ? handleMapLongPress : undefined}
             onOpenInMaps={openInMaps}
             buttonColor={colors.tint}
           />
         )}
 
-        {(location && (Platform.OS === 'ios' || Platform.OS === 'android')) && (
+        {(location && isAdmin && (Platform.OS === 'ios' || Platform.OS === 'android')) && (
           <ThemedText style={styles.hint}>
             Appuyez longuement sur la carte pour ajouter un point d’intérêt.
           </ThemedText>
@@ -190,17 +192,19 @@ export default function HomeScreen() {
                 <ThemedText style={styles.poiCoords}>
                   {poi.latitude.toFixed(4)}, {poi.longitude.toFixed(4)}
                 </ThemedText>
-                <Pressable
-                  style={[styles.deleteButton, { borderColor: colors.tint }]}
-                  onPress={() => deletePoi(poi.id)}>
-                  <ThemedText style={{ color: colors.tint, fontSize: 12 }}>Supprimer</ThemedText>
-                </Pressable>
+                {isAdmin && (
+                  <Pressable
+                    style={[styles.deleteButton, { borderColor: colors.tint }]}
+                    onPress={() => deletePoi(poi.id)}>
+                    <ThemedText style={{ color: colors.tint, fontSize: 12 }}>Supprimer</ThemedText>
+                  </Pressable>
+                )}
               </ThemedView>
             ))}
           </ThemedView>
         )}
 
-        {location && Platform.OS === 'web' && (
+        {location && isAdmin && Platform.OS === 'web' && (
           <Pressable
             style={[styles.button, styles.buttonSecondary, { borderColor: colors.tint }]}
             onPress={addCurrentLocationAsPoi}>

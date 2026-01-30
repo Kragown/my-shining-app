@@ -1,11 +1,9 @@
 import {
     createUserWithEmailAndPassword,
-    onAuthStateChanged,
     signInWithEmailAndPassword,
     signOut,
-    type User,
 } from 'firebase/auth';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
@@ -22,6 +20,7 @@ import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useUserRole } from '@/hooks/use-user-role';
 import { auth } from '@/lib/firebase';
 
 const CARD_RADIUS = 20;
@@ -29,7 +28,7 @@ const INPUT_RADIUS = 12;
 const BUTTON_RADIUS = 12;
 
 export default function AuthScreen() {
-  const [user, setUser] = useState<User | null>(null);
+  const { user, role, isAdmin } = useUserRole();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
@@ -56,12 +55,6 @@ export default function AuthScreen() {
   const inputBorder = isDark ? '#3a3a3c' : '#e5e5ea';
   const errorBg = isDark ? 'rgba(220,53,69,0.2)' : 'rgba(220,53,69,0.1)';
   const errorBorder = isDark ? 'rgba(220,53,69,0.5)' : 'rgba(220,53,69,0.3)';
-
-  useEffect(() => {
-    if (!auth) return;
-    const unsubscribe = onAuthStateChanged(auth, setUser);
-    return () => unsubscribe();
-  }, []);
 
   const handleSubmit = async () => {
     if (!auth) {
@@ -130,6 +123,11 @@ export default function AuthScreen() {
             <ThemedText style={[styles.headerSubtitle, { color: colors.icon }]}>
               {user.email}
             </ThemedText>
+            {role && (
+              <ThemedText style={[styles.roleBadge, { color: colors.icon }]}>
+                {isAdmin ? 'Administrateur' : 'Utilisateur'}
+              </ThemedText>
+            )}
           </View>
           <View style={[styles.card, { backgroundColor: cardBg }, cardShadow]}>
             <Pressable
@@ -315,6 +313,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     paddingHorizontal: 8,
+  },
+  roleBadge: {
+    fontSize: 12,
+    marginTop: 4,
+    opacity: 0.9,
   },
   card: {
     borderRadius: CARD_RADIUS,

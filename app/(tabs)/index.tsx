@@ -1,98 +1,206 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import * as Location from 'expo-location';
+import { useCallback, useState } from 'react';
+import {
+  ActivityIndicator,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+} from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
+import { LocationMap } from '@/components/location-map';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+
+type LocationCoords = {
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  altitude: number | null;
+};
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
+  const [location, setLocation] = useState<LocationCoords | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [permissionStatus, setPermissionStatus] = useState<Location.PermissionStatus | null>(null);
+
+  const requestAndGetLocation = useCallback(async () => {
+    setError(null);
+    setLoading(true);
+
+    try {
+      const { status: existing } = await Location.getForegroundPermissionsAsync();
+
+      if (existing !== 'granted') {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        setPermissionStatus(status);
+
+        if (status !== 'granted') {
+          setError('Accès à la position refusé. Activez-la dans les réglages.');
+          setLoading(false);
+          return;
+        }
+      } else {
+        setPermissionStatus(existing);
+      }
+
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      setLocation({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy ?? null,
+        altitude: position.coords.altitude ?? null,
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Impossible d’obtenir la position';
+      setError(message);
+      setLocation(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const openInMaps = useCallback(() => {
+    if (!location) return;
+    const { latitude, longitude } = location;
+    const url =
+      Platform.select({
+        ios: `maps://?q=${latitude},${longitude}`,
+        android: `geo:${latitude},${longitude}?q=${latitude},${longitude}`,
+        default: `https://www.google.com/maps?q=${latitude},${longitude}`,
+      }) ?? `https://www.google.com/maps?q=${latitude},${longitude}`;
+    Linking.openURL(url);
+  }, [location]);
+
+  const openSettings = useCallback(() => {
+    if (typeof Linking.openSettings === 'function') {
+      Linking.openSettings();
+    }
+  }, []);
+
+  return (
+    <ThemedView style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}>
+        <ThemedText type="title" style={styles.title}>
+          Ma position
         </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+
+        {location && (
+          <LocationMap
+            location={location}
+            onOpenInMaps={openInMaps}
+            buttonColor={colors.tint}
+          />
+        )}
+
+        {loading && (
+          <ThemedView style={styles.card}>
+            <ActivityIndicator size="large" color={colors.tint} />
+            <ThemedText style={styles.loadingText}>Localisation en cours…</ThemedText>
+          </ThemedView>
+        )}
+
+        {error && !loading && (
+          <ThemedView style={[styles.card, styles.errorCard]}>
+            <ThemedText style={styles.errorText}>{error}</ThemedText>
+            <Pressable style={[styles.button, { backgroundColor: colors.tint }]} onPress={openSettings}>
+              <ThemedText style={styles.buttonText}>Ouvrir les réglages</ThemedText>
+            </Pressable>
+          </ThemedView>
+        )}
+
+        {!location && !loading && !error && (
+          <ThemedView style={styles.card}>
+            <ThemedText style={styles.placeholder}>Aucune position pour le moment.</ThemedText>
+          </ThemedView>
+        )}
+
+        <Pressable
+          style={[styles.button, { backgroundColor: colors.tint }]}
+          onPress={requestAndGetLocation}
+          disabled={loading}>
+          <ThemedText style={styles.buttonText}>
+            {location ? 'Actualiser ma position' : 'Obtenir ma position'}
+          </ThemedText>
+        </Pressable>
+      </ScrollView>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
   },
-  stepContainer: {
-    gap: 8,
+  scrollContent: {
+    padding: 20,
+    paddingTop: 60,
+    gap: 16,
+  },
+  title: {
+    marginBottom: 4,
+  },
+  subtitle: {
+    opacity: 0.8,
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  card: {
+    padding: 20,
+    borderRadius: 12,
+    gap: 8,
+    alignItems: 'center',
+    minHeight: 120,
+    justifyContent: 'center',
+  },
+  errorCard: {
+    borderWidth: 1,
+    borderColor: '#e74c3c',
+  },
+  loadingText: {
+    marginTop: 12,
+  },
+  errorText: {
+    textAlign: 'center',
+    color: '#e74c3c',
+    marginBottom: 12,
+  },
+  label: {
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: 12,
+  },
+  value: {
+    fontVariant: ['tabular-nums'],
+  },
+  placeholder: {
+    opacity: 0.7,
+  },
+  button: {
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  buttonSecondary: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: '600',
   },
 });

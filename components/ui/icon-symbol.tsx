@@ -8,6 +8,7 @@ type IconSymbolName = keyof typeof MAPPING;
 
 const MAPPING = {
   'house.fill': 'home',
+  'location.fill': 'my-location',
   'paperplane.fill': 'send',
   'person.fill': 'person',
   'lock.fill': 'lock',

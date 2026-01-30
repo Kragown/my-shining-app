@@ -35,13 +35,18 @@ export function LocationMap({ location, pois = [], onMapLongPress }: Props) {
           onMapLongPress?.({ latitude, longitude });
         }}
       >
-        {pois.map((poi) => (
-          <Marker
-            key={poi.id}
-            coordinate={{ latitude: poi.latitude, longitude: poi.longitude }}
-            title={poi.name}
-          />
-        ))}
+        {pois.map((poi) => {
+          const likesLabel = (poi.likesCount ?? 0) > 0 ? `${poi.likesCount} like${(poi.likesCount ?? 0) > 1 ? 's' : ''}` : null;
+          const descParts = [poi.address, likesLabel].filter(Boolean);
+          return (
+            <Marker
+              key={poi.id}
+              coordinate={{ latitude: poi.latitude, longitude: poi.longitude }}
+              title={poi.name}
+              description={descParts.length > 0 ? descParts.join(' · ') : undefined}
+            />
+          );
+        })}
       </MapView>
     </View>
   );

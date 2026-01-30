@@ -1,18 +1,19 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
-    signOut,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
 } from 'firebase/auth';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    View,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -20,6 +21,7 @@ import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLikes } from '@/hooks/use-likes';
 import { useUserRole } from '@/hooks/use-user-role';
 import { auth } from '@/lib/firebase';
 
@@ -29,6 +31,7 @@ const BUTTON_RADIUS = 12;
 
 export default function AuthScreen() {
   const { user, role, isAdmin } = useUserRole();
+  const { likedPois, unlike, loading: likesLoading, error: likesError } = useLikes(user?.uid ?? null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
@@ -150,6 +153,38 @@ export default function AuthScreen() {
                 </>
               )}
             </Pressable>
+          </View>
+
+          <View style={[styles.card, styles.likedCard, { backgroundColor: cardBg }, cardShadow]}>
+            <ThemedText type="subtitle" style={styles.likedSectionTitle}>
+              Mes points likés
+            </ThemedText>
+            {likesLoading && <ActivityIndicator size="small" color={colors.tint} style={styles.likedLoader} />}
+            {likesError && (
+              <ThemedText style={[styles.likedError, { color: isDark ? '#ff6b6b' : '#c62828' }]}>
+                {likesError}
+              </ThemedText>
+            )}
+            {!likesLoading && !likesError && likedPois.length === 0 && (
+              <ThemedText style={[styles.likedEmpty, { color: colors.icon }]}>
+                Aucun point liké pour le moment. Allez sur l’onglet Position pour liker des points.
+              </ThemedText>
+            )}
+            {!likesLoading && likedPois.length > 0 && likedPois.map((liked) => (
+              <View key={liked.poiId} style={[styles.likedRow, { borderColor: inputBorder }]}>
+                <View style={styles.likedRowContent}>
+                  <ThemedText style={styles.likedRowName}>{liked.name}</ThemedText>
+                  {liked.address ? (
+                    <ThemedText style={[styles.likedRowAddress, { color: colors.icon }]} numberOfLines={1}>
+                      {liked.address}
+                    </ThemedText>
+                  ) : null}
+                </View>
+                <Pressable style={styles.likedUnlike} onPress={() => unlike(liked.poiId)}>
+                  <MaterialIcons name="favorite" size={24} color="#e74c3c" />
+                </Pressable>
+              </View>
+            ))}
           </View>
         </ScrollView>
       </ThemedView>
@@ -318,6 +353,48 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     opacity: 0.9,
+  },
+  likedCard: {
+    marginTop: 24,
+  },
+  likedSectionTitle: {
+    marginBottom: 12,
+  },
+  likedLoader: {
+    marginBottom: 8,
+  },
+  likedEmpty: {
+    fontSize: 14,
+    textAlign: 'center',
+    paddingVertical: 12,
+  },
+  likedError: {
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  likedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: INPUT_RADIUS,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  likedRowContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  likedRowName: {
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  likedRowAddress: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  likedUnlike: {
+    padding: 4,
   },
   card: {
     borderRadius: CARD_RADIUS,

@@ -12,11 +12,13 @@ import {
   TextInput,
 } from 'react-native';
 
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { LocationMap } from '@/components/location-map';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLikes } from '@/hooks/use-likes';
 import { usePois } from '@/hooks/use-pois';
 import { useUserRole } from '@/hooks/use-user-role';
 
@@ -30,8 +32,9 @@ type LocationCoords = {
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const { isAdmin } = useUserRole();
+  const { user, isAdmin } = useUserRole();
   const { pois, loading: poisLoading, error: poisError, addPoi, deletePoi } = usePois();
+  const { isLiked, like, unlike } = useLikes();
 
   const [location, setLocation] = useState<LocationCoords | null>(null);
   const [loading, setLoading] = useState(false);
@@ -189,9 +192,24 @@ export default function HomeScreen() {
             {pois.map((poi) => (
               <ThemedView key={poi.id} style={styles.poiRow}>
                 <ThemedText style={styles.poiName}>{poi.name}</ThemedText>
+                {poi.address ? (
+                  <ThemedText style={styles.poiAddress}>{poi.address}</ThemedText>
+                ) : null}
                 <ThemedText style={styles.poiCoords}>
                   {poi.latitude.toFixed(4)}, {poi.longitude.toFixed(4)}
+                  {(poi.likesCount ?? 0) > 0 && ` · ${poi.likesCount} like${(poi.likesCount ?? 0) > 1 ? 's' : ''}`}
                 </ThemedText>
+                {user && (
+                  <Pressable
+                    style={styles.likeButton}
+                    onPress={() => (isLiked(poi.id) ? unlike(poi.id) : like(poi))}>
+                    <MaterialIcons
+                      name={isLiked(poi.id) ? 'favorite' : 'favorite-border'}
+                      size={22}
+                      color={isLiked(poi.id) ? '#e74c3c' : colors.icon}
+                    />
+                  </Pressable>
+                )}
                 {isAdmin && (
                   <Pressable
                     style={[styles.deleteButton, { borderColor: colors.tint }]}
@@ -382,10 +400,18 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 100,
   },
+  poiAddress: {
+    fontSize: 13,
+    opacity: 0.85,
+    width: '100%',
+  },
   poiCoords: {
     fontSize: 12,
     opacity: 0.8,
     fontVariant: ['tabular-nums'],
+  },
+  likeButton: {
+    padding: 6,
   },
   deleteButton: {
     paddingVertical: 6,

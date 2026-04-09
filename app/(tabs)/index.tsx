@@ -195,10 +195,11 @@ export default function HomeScreen() {
                 {poi.address ? (
                   <ThemedText style={styles.poiAddress}>{poi.address}</ThemedText>
                 ) : null}
-                <ThemedText style={styles.poiCoords}>
-                  {poi.latitude.toFixed(4)}, {poi.longitude.toFixed(4)}
-                  {(poi.likesCount ?? 0) > 0 && ` · ${poi.likesCount} like${(poi.likesCount ?? 0) > 1 ? 's' : ''}`}
-                </ThemedText>
+                {(poi.likesCount ?? 0) > 0 ? (
+                  <ThemedText style={styles.poiCoords}>
+                    {poi.likesCount} like{(poi.likesCount ?? 0) > 1 ? 's' : ''}
+                  </ThemedText>
+                ) : null}
                 {user && (
                   <Pressable
                     style={styles.likeButton}

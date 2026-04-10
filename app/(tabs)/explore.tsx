@@ -1,9 +1,4 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-} from 'firebase/auth';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -23,7 +18,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLikes } from '@/hooks/use-likes';
 import { useUserRole } from '@/hooks/use-user-role';
-import { auth } from '@/lib/firebase';
+import { loginWithEmail, logout, registerWithEmail } from '@/services/auth-service';
 
 const CARD_RADIUS = 20;
 const INPUT_RADIUS = 12;
@@ -60,10 +55,6 @@ export default function AuthScreen() {
   const errorBorder = isDark ? 'rgba(220,53,69,0.5)' : 'rgba(220,53,69,0.3)';
 
   const handleSubmit = async () => {
-    if (!auth) {
-      setError('Firebase non configuré');
-      return;
-    }
     if (!email.trim() || !password) {
       setError('Email et mot de passe requis');
       return;
@@ -72,34 +63,22 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, email.trim(), password);
+        await registerWithEmail(email.trim(), password);
       } else {
-        await signInWithEmailAndPassword(auth, email.trim(), password);
+        await loginWithEmail(email.trim(), password);
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur de connexion';
-      if (message.includes('auth/email-already-in-use')) {
-        setError('Cet email est déjà utilisé. Connectez-vous.');
-      } else if (message.includes('auth/invalid-credential') || message.includes('auth/wrong-password')) {
-        setError('Email ou mot de passe incorrect');
-      } else if (message.includes('auth/weak-password')) {
-        setError('Le mot de passe doit faire au moins 6 caractères');
-      } else if (message.includes('auth/invalid-email')) {
-        setError('Email invalide');
-      } else {
-        setError(message);
-      }
+      setError(err instanceof Error ? err.message : 'Erreur de connexion');
     } finally {
       setLoading(false);
     }
   };
 
   const handleLogout = async () => {
-    if (!auth) return;
     setLoading(true);
     setError(null);
     try {
-      await signOut(auth);
+      await logout();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la déconnexion');
     } finally {

@@ -1,9 +1,7 @@
-import * as Location from 'expo-location';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
-  Linking,
   Modal,
   Platform,
   Pressable,
@@ -21,25 +19,21 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLikes } from '@/hooks/use-likes';
 import { usePois } from '@/hooks/use-pois';
 import { useUserRole } from '@/hooks/use-user-role';
-
-type LocationCoords = {
-  latitude: number;
-  longitude: number;
-  accuracy: number | null;
-  altitude: number | null;
-};
+import type { DeviceLocation } from '@/services/location-service';
+import { requestDeviceLocation } from '@/services/location-service';
+import { openMapsAt } from '@/services/maps-link-service';
+import { openSystemSettings } from '@/services/system-settings-service';
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const { user, isAdmin } = useUserRole();
   const { pois, loading: poisLoading, error: poisError, addPoi, deletePoi } = usePois();
-  const { isLiked, like, unlike } = useLikes();
+  const { isLiked, like, unlike } = useLikes(user?.uid ?? null);
 
-  const [location, setLocation] = useState<LocationCoords | null>(null);
+  const [location, setLocation] = useState<DeviceLocation | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [permissionStatus, setPermissionStatus] = useState<Location.PermissionStatus | null>(null);
   const [pendingPoi, setPendingPoi] = useState<{ latitude: number; longitude: number } | null>(null);
   const [poiName, setPoiName] = useState('');
   const [addPoiLoading, setAddPoiLoading] = useState(false);
@@ -48,37 +42,18 @@ export default function HomeScreen() {
   const requestAndGetLocation = useCallback(async () => {
     setError(null);
     setLoading(true);
-
     try {
-      const { status: existing } = await Location.getForegroundPermissionsAsync();
-
-      if (existing !== 'granted') {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        setPermissionStatus(status);
-
-        if (status !== 'granted') {
+      const result = await requestDeviceLocation();
+      if (!result.ok) {
+        if (result.permissionDenied) {
           setError('Accès à la position refusé. Activez-la dans les réglages.');
-          setLoading(false);
-          return;
+        } else if (result.error) {
+          setError(result.error);
         }
-      } else {
-        setPermissionStatus(existing);
+        setLocation(null);
+        return;
       }
-
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-
-      setLocation({
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        accuracy: position.coords.accuracy ?? null,
-        altitude: position.coords.altitude ?? null,
-      });
-    } catch (e) {
-      const message = e instanceof Error ? e.message : 'Impossible d’obtenir la position';
-      setError(message);
-      setLocation(null);
+      setLocation(result.location);
     } finally {
       setLoading(false);
     }
@@ -86,20 +61,11 @@ export default function HomeScreen() {
 
   const openInMaps = useCallback(() => {
     if (!location) return;
-    const { latitude, longitude } = location;
-    const url =
-      Platform.select({
-        ios: `maps://?q=${latitude},${longitude}`,
-        android: `geo:${latitude},${longitude}?q=${latitude},${longitude}`,
-        default: `https://www.google.com/maps?q=${latitude},${longitude}`,
-      }) ?? `https://www.google.com/maps?q=${latitude},${longitude}`;
-    Linking.openURL(url);
+    openMapsAt(location.latitude, location.longitude);
   }, [location]);
 
   const openSettings = useCallback(() => {
-    if (typeof Linking.openSettings === 'function') {
-      Linking.openSettings();
-    }
+    openSystemSettings();
   }, []);
 
   const handleMapLongPress = useCallback((coords: { latitude: number; longitude: number }) => {

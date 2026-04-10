@@ -5,8 +5,9 @@
 
 import { Platform } from 'react-native';
 
+/** Accent utilisé pour les boutons pleins (texte blanc) : éviter le blanc en dark sinon fond blanc + texte blanc. */
 const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+const tintColorDark = '#2A8FAD';
 
 export const Colors = {
   light: {

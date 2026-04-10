@@ -12,7 +12,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 
-import { adjustPoiLikesCount, POIS_COLLECTION } from '@/data/poi-repository';
+import { adjustPoiLikesCount } from '@/data/poi-repository';
 
 import type { LikedPoiSnapshot, PointOfInterest } from '@/types/poi';
 
